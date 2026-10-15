@@ -34,8 +34,7 @@ const base = (over: object = {}) => BookingCreate.parse({
 describe.skipIf(!url)("booking (integration)", () => {
   const pool = new pg.Pool({ connectionString: url });
   beforeAll(async () => {
-    await pool.query(`TRUNCATE tracking_alias, order_line, delivery_booking, parcel, "order", port_call, assignment, vessel, port, person, consent_record, outbox_job RESTART IDENTITY CASCADE`).catch(async () =>
-      pool.query(`TRUNCATE tracking_alias, order_line, delivery_booking, parcel, "order", port_call, assignment, vessel, port, person RESTART IDENTITY CASCADE`));
+    await pool.query(`TRUNCATE tracking_alias, order_line, delivery_booking, parcel, "order", port_call, assignment, vessel, port, person, consent_record, outbox_job, audit_log RESTART IDENTITY CASCADE`);
     await pool.query(`INSERT INTO port(code,name,delivery_address) VALUES ('ZADUR','Durban','x')`);
   });
   afterAll(() => pool.end());
