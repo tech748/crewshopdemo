@@ -42,11 +42,11 @@ describe.skipIf(!url)("lookup (integration)", () => {
   });
   it("response never leaks names", async () => expect(JSON.stringify(await lookup(pool, "CODE1AAAA"))).not.toMatch(/Smith/));
   it("anonymise strips PII but keeps orders/parcels", async () => {
-    const p = (await pool.query(`INSERT INTO person(phone_e164,phone_hash,full_name_enc) VALUES ('+1','h','n') RETURNING id`)).rows[0].id;
+    const p = (await pool.query(`INSERT INTO person(phone_enc,phone_hash,full_name_enc) VALUES ('+1','h','n') RETURNING id`)).rows[0].id;
     await pool.query(`UPDATE "order" SET recipient_person_id=$1`, [p]);
     await anonymisePerson(pool, p, "test");
     const row = (await pool.query(`SELECT * FROM person WHERE id=$1`, [p])).rows[0];
-    expect(row.phone_e164).toBeNull(); expect(row.erased_at).not.toBeNull();
+    expect(row.phone_enc).toBeNull(); expect(row.erased_at).not.toBeNull();
     expect((await pool.query(`SELECT count(*)::int c FROM parcel`)).rows[0].c).toBe(5);
   });
 });

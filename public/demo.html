@@ -37,8 +37,8 @@ function render(r){
  let h='';
  if(r.outcome==='attached_received') h=`<h2>Your parcel is here ✅</h2><p>It's at our warehouse and linked to order <b>${esc(r.orderCode)}</b>${r.portName?` for <b>${esc(r.portName)}</b>`:''}.</p>${risk(r.arrivalRisk)}`;
  else if(r.outcome==='attached_expected') h=`<h2>On its way to us</h2><p>Linked to order <b>${esc(r.orderCode)}</b>. We'll message you as soon as it arrives.</p>${risk(r.arrivalRisk)}`;
- else if(r.outcome==='unattached_received') h=`<h2>Your parcel is here 📦</h2><p>We have it, but there's no delivery order yet. Book delivery to your ship:</p><a class="cta" href="${esc(r.nextAction.url)}" onclick="alert('Booking form comes in M2');return false">Book delivery (R85)</a>`;
- else if(r.outcome==='unknown') h=`<h2>No record of this code</h2><p>It may not have reached us yet. Declare it and book delivery now so we expect it:</p><a class="cta" href="${esc(r.nextAction.url)}" onclick="alert('Booking form comes in M2');return false">Declare parcel &amp; book</a>`;
+ else if(r.outcome==='unattached_received') h=`<h2>Your parcel is here 📦</h2><p>We have it, but there's no delivery order yet. Book delivery to your ship:</p><a class="cta" href="${esc(r.nextAction.url)}">Book delivery (R85)</a>`;
+ else if(r.outcome==='unknown') h=`<h2>No record of this code</h2><p>It may not have reached us yet. Declare it and book delivery now so we expect it:</p><a class="cta" href="${esc(r.nextAction.url)}">Declare parcel &amp; book</a>`;
  else if(r.outcome==='needs_second_factor') h=`<h2>One more detail</h2><p>This code matches more than one parcel. Please enter your surname.</p>`;
  else if(r.outcome==='order') h=`<h2>Order ${esc(r.orderCode)}</h2><p>${r.parcels.length} parcel(s)${r.portName?` · ${esc(r.portName)}`:''}</p><ul>${r.parcels.map(p=>`<li>${esc(p.status.replace(/_/g,' '))}</li>`).join('')}</ul>${risk(r.arrivalRisk)}`;
  else h=`<h2>That doesn't look like a valid code</h2><p>Check for typos and try again.</p>`;

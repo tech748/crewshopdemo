@@ -2,10 +2,11 @@ import { z } from "zod";
 
 /** Environment (secrets, infra). */
 const Env = z.object({
-  NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+  NODE_ENV: z.enum(["development", "test", "staging", "production"]).default("development"),
   PORT: z.coerce.number().default(3000),
   DATABASE_URL: z.string().default("postgres://localhost:5432/crew"),
   PII_ENCRYPTION_KEY: z.string().min(32).optional(),
+  WHATSAPP_NUMBER: z.string().default("27000000000"), // digits only, for wa.me handoff links
 });
 export const env = Env.parse(process.env);
 
@@ -21,6 +22,6 @@ export const business = {
   warnWindowHours: 12,
   /** null = no cap (founder decision). Kept configurable: COD is a cash-theft/no-show risk. */
   codCapCents: null as number | null,
-  /** null = never auto-delete (founder decision). Erasure-on-request still supported (POPIA s24 / GDPR Art.17). */
-  retentionMonths: null as number | null,
+  /** Anonymise PII (keep orders, parcels, vessel calls, dates) 12 months after last activity. Founder decision. */
+  retentionMonths: 12 as number | null,
 } as const;

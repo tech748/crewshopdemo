@@ -1,0 +1,63 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Book delivery</title>
+<style>
+:root{--c-bg:#F4F7FA;--c-surface:#fff;--c-ink:#0F2A3D;--c-muted:#5B7083;--c-brand:#014D76;--c-brand-ink:#fff;--c-ok:#1E8E5A;--c-warn:#B7791F;--c-bad:#B83232;--c-line:#D9E2EA;--r:14px;--s1:8px;--s2:16px;--s3:24px;--font:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+[hidden]{display:none!important}*{box-sizing:border-box}body{margin:0;background:var(--c-bg);color:var(--c-ink);font-family:var(--font)}
+header{background:var(--c-brand);color:#fff;padding:var(--s3) var(--s2)}header h1{margin:0;font-size:22px}header p{margin:6px 0 0;opacity:.85;font-size:14px}
+main{max-width:560px;margin:0 auto;padding:var(--s2)}.card{background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--r);padding:var(--s2);margin-top:var(--s2)}
+label{display:block;font-size:13px;font-weight:600;margin:12px 0 4px}input,select,textarea{width:100%;padding:12px;border:1px solid var(--c-line);border-radius:10px;font-size:16px;font-family:inherit}
+.row{display:flex;gap:var(--s1);align-items:center}.row input[type=checkbox]{width:auto}.row label{margin:0;font-weight:400}
+button.primary,a.cta{display:block;width:100%;text-align:center;margin-top:var(--s2);padding:14px;border-radius:10px;background:var(--c-brand);color:#fff;border:0;font-size:16px;font-weight:600;text-decoration:none;cursor:pointer}
+a.wa{background:#1E8E5A}.total{display:flex;justify-content:space-between;font-size:20px;font-weight:700;margin-top:var(--s1)}
+.muted{color:var(--c-muted);font-size:12px}.err{color:var(--c-bad);font-size:13px;margin-top:6px}.banner{background:#FFF6E5;border:1px solid #F1D49B;border-radius:10px;padding:12px;margin-top:12px;font-size:14px}
+.ok{background:#E8F6EF;border:1px solid #A9DBC3}
+</style></head><body>
+<header><h1>Book delivery to your ship</h1><p>R85 per parcel. No account needed.</p></header>
+<main><form id="f" class="card" novalidate>
+ <label>Parcel tracking number(s)</label><textarea id="codes" rows="2" placeholder="One per line or comma-separated"></textarea>
+ <label>Port</label><select id="port"></select>
+ <label>Ship name</label><input id="vessel" placeholder="e.g. MV Demo Star">
+ <label>Ship arrival date at port</label><input id="eta" type="date">
+ <label>Crew member name</label><input id="rname" placeholder="As on the parcel label">
+ <label>Crew member WhatsApp (international format)</label><input id="rphone" placeholder="+639171234567" inputmode="tel">
+ <div class="row" style="margin-top:12px"><input type="checkbox" id="other"><label for="other">Someone else is paying</label></div>
+ <div id="payer" hidden><label>Payer name</label><input id="pname"><label>Payer WhatsApp</label><input id="pphone" placeholder="+27821234567"></div>
+ <label>Payment</label><select id="pay"><option value="prepaid">Pay now (card)</option><option value="cod">Pay on delivery at the ship</option></select>
+ <div class="row" style="margin-top:12px"><input type="checkbox" id="c1"><label for="c1">I agree to be contacted about this delivery (required)</label></div>
+ <div class="row" style="margin-top:8px"><input type="checkbox" id="c2"><label for="c2">Message me when my ship is calling at your ports (optional)</label></div>
+ <div id="quote"></div><div id="err" class="err"></div><div id="msg"></div>
+ <button class="primary" id="go" type="submit">Book delivery</button>
+</form></main>
+<script>
+const $=id=>document.getElementById(id);
+const rand=new URLSearchParams(location.search).get('code');if(rand)$('codes').value=rand;
+$('eta').value=new Date(Date.now()+6*864e5).toISOString().slice(0,10);
+fetch('/v1/ports').then(r=>r.json()).then(ps=>{$('port').innerHTML=ps.map(p=>`<option value="${p.code}">${p.name}</option>`).join('');refresh()});
+$('other').onchange=()=>{$('payer').hidden=!$('other').checked};
+const R=n=>'R'+(n/100).toFixed(0);
+const codes=()=>$('codes').value.split(/[\n,]+/).map(s=>s.trim()).filter(Boolean);
+const eta=()=>new Date($('eta').value+'T12:00:00Z').toISOString();
+async function refresh(){
+ if(!codes().length||!$('port').value||!$('eta').value){$('quote').innerHTML='';return}
+ const r=await fetch('/v1/quotes',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({parcelCodes:codes(),portCode:$('port').value,eta:eta()})});
+ const q=await r.json(); if(!r.ok){$('quote').innerHTML='';return}
+ let h=`<div class="total"><span>${q.parcelCount} parcel(s)</span><span>${R(q.totalCents)}</span></div>`;
+ if(!q.withinCutoff) h+=`<div class="banner">This order is inside our ${q.cutoffHours}h online cut-off for ${q.portName}. Tap below to talk to us on WhatsApp so we can try to fulfil it.</div>`;
+ $('quote').innerHTML=h; $('go').textContent=q.withinCutoff?'Book delivery':'Chat to us on WhatsApp'; window._q=q;
+}
+['codes','port','eta'].forEach(i=>$(i).addEventListener('input',refresh));
+$('f').onsubmit=async e=>{e.preventDefault();$('err').textContent='';
+ const body={parcelCodes:codes(),portCode:$('port').value,eta:eta(),vesselName:$('vessel').value,
+  recipient:{fullName:$('rname').value,phone:$('rphone').value},paymentMethod:$('pay').value,
+  consent:{transactional:$('c1').checked,marketing:$('c2').checked,wordingVersion:'v1-draft'}};
+ if(!$('c1').checked){$('err').textContent='Please tick the required consent box.';return}
+ if($('other').checked)body.payer={fullName:$('pname').value,phone:$('pphone').value};
+ if(window._q&&!window._q.withinCutoff)body.requestManualReview=true;
+ const r=await fetch('/v1/bookings',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(body)});
+ const d=await r.json();
+ if(!r.ok){$('err').textContent=d.issues?d.issues.map(i=>i.message).join(' · '):(d.message||'Something went wrong');return}
+ if(d.outcome==='manual_review_created'){$('msg').innerHTML=`<div class="banner ok">Request <b>${d.orderCode}</b> received. Continue on WhatsApp so we can confirm it.</div><a class="cta wa" href="${d.quote.handoffUrl}">Open WhatsApp</a>`}
+ else{$('msg').innerHTML=`<div class="banner ok">Order <b>${d.orderCode}</b> created — ${R(d.totalCents)}.<br>${d.nextStep==='pay'?'Next: secure card payment (Paystack — arrives in M7).':'Next: we will verify the crew member on WhatsApp (M6). Staff will review the order.'}</div>`}
+ $('go').hidden=true;
+};
+</script></body></html>

@@ -1,5 +1,7 @@
 import { pool } from "./pool.js";
 
+if (process.env.NODE_ENV === "production") throw new Error("Refusing to seed (truncates tables) in production");
+
 await pool.query(`TRUNCATE tracking_alias, order_line, parcel, delivery_booking, "order", port_call, assignment, vessel, port RESTART IDENTITY CASCADE`);
 const port = (await pool.query(`INSERT INTO port(code,name,delivery_address) VALUES
   ('ZADUR','Durban','Gate 3, Maydon Wharf Rd, Durban (demo address)'),
