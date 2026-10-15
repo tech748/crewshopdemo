@@ -47,3 +47,12 @@ describe("codes", () => {
     for (let i = 0; i < 200; i++) expect(generateOrderCode()).toMatch(/^CR[2-9A-HJKMNP-Z]{6}$/);
   });
 });
+
+import { codRiskFlags } from "../src/domain/codRisk.js";
+describe("codRiskFlags", () => {
+  it("flags first-time and tight ETA; never blocks", () =>
+    expect(codRiskFlags({ totalCents: 8500, recipientPriorCompletedOrders: 0, vesselEtaWithinHours: 30, softThresholdCents: null }))
+      .toEqual(["first_time_recipient", "tight_eta"]));
+  it("no flags for a repeat customer with time", () =>
+    expect(codRiskFlags({ totalCents: 8500, recipientPriorCompletedOrders: 3, vesselEtaWithinHours: 200, softThresholdCents: null })).toEqual([]));
+});

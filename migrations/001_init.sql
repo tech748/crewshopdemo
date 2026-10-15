@@ -30,7 +30,7 @@ CREATE TABLE assignment (
 CREATE TABLE port (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   code text NOT NULL UNIQUE, name text NOT NULL, delivery_address text NOT NULL,
-  cutoff_hours int NOT NULL DEFAULT 24, handling_buffer_hours int NOT NULL DEFAULT 24,
+  cutoff_hours int NOT NULL DEFAULT 24, handling_buffer_hours int NOT NULL DEFAULT 0,
   notes text, active boolean NOT NULL DEFAULT true, synced_from_monday_at timestamptz
 );
 CREATE TABLE port_call (
@@ -56,6 +56,7 @@ CREATE TABLE "order" (
     CHECK (payment_status IN ('unpaid','paid','cod_pending','cod_collected','refunded','credited')),
   payment_method text CHECK (payment_method IN ('prepaid','cod')),
   cod_verified_at timestamptz, handover_code_hash text,
+  risk_flags text[] NOT NULL DEFAULT '{}',          -- system flags, a human decides
   source text NOT NULL DEFAULT 'web' CHECK (source IN ('web','whatsapp','partner','staff')),
   partner_id uuid REFERENCES partner(id),
   manual_review boolean NOT NULL DEFAULT false,

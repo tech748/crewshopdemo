@@ -17,7 +17,7 @@ export const business = {
   pricePerParcelCents: 8500, // R85
   currency: "ZAR" as const,
   defaultCutoffHours: 24, // online bookings; per-port override in `port.cutoff_hours`
-  handlingBufferHours: 24, // receive/scan/pack buffer
+  handlingBufferHours: 0, // founder: the 24h cut-off is the AGGREGATE (handling included), not stacked
   warnWindowHours: 12,
   /** null = no cap (founder decision). Kept configurable: COD is a cash-theft/no-show risk. */
   codCapCents: null as number | null,

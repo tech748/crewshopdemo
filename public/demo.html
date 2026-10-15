@@ -1,0 +1,49 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crew Parcel — Track</title>
+<style>
+:root{ /* design tokens (placeholder palette, to be replaced by brand) */
+ --c-bg:#F4F7FA; --c-surface:#fff; --c-ink:#0F2A3D; --c-muted:#5B7083; --c-brand:#014D76; --c-brand-ink:#fff;
+ --c-ok:#1E8E5A; --c-warn:#B7791F; --c-bad:#B83232; --c-line:#D9E2EA;
+ --r:14px; --s1:8px; --s2:16px; --s3:24px; --font:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;}
+*{box-sizing:border-box} body{margin:0;background:var(--c-bg);color:var(--c-ink);font-family:var(--font)}
+header{background:var(--c-brand);color:var(--c-brand-ink);padding:var(--s3) var(--s2)}
+header h1{margin:0;font-size:22px} header p{margin:6px 0 0;opacity:.85;font-size:14px}
+main{max-width:560px;margin:0 auto;padding:var(--s2)}
+.card{background:var(--c-surface);border:1px solid var(--c-line);border-radius:var(--r);padding:var(--s2);margin-top:var(--s2)}
+form{display:flex;gap:var(--s1)} input{flex:1;padding:14px;border:1px solid var(--c-line);border-radius:10px;font-size:16px}
+button{padding:14px 18px;border:0;border-radius:10px;background:var(--c-brand);color:var(--c-brand-ink);font-size:16px;font-weight:600;cursor:pointer}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:var(--s1)} .chip{background:#E8EFF5;color:var(--c-ink);font-size:12px;padding:6px 10px;border-radius:99px;cursor:pointer;border:0}
+.hint{font-size:12px;color:var(--c-muted);margin-top:var(--s1)}
+.badge{display:inline-block;padding:4px 10px;border-radius:99px;font-size:12px;font-weight:700;color:#fff}
+.ok{background:var(--c-ok)} .warn{background:var(--c-warn)} .bad{background:var(--c-bad)} .info{background:var(--c-brand)}
+h2{margin:var(--s1) 0;font-size:18px} p{margin:6px 0;line-height:1.45} a.cta{display:block;text-align:center;margin-top:var(--s2);padding:14px;border-radius:10px;background:var(--c-brand);color:#fff;text-decoration:none;font-weight:600}
+</style></head><body>
+<header><h1>Track your parcel</h1><p>Enter a parcel tracking number or your delivery code.</p></header>
+<main>
+ <div class="card">
+  <form id="f"><input id="code" placeholder="e.g. CRK7M2QX or 1Z999AA1…" autocomplete="off"><button>Track</button></form>
+  <div class="chips" id="chips"></div>
+  <div class="hint">Demo data — tap an example to see each of the 4 outcomes.</div>
+ </div>
+ <div id="out"></div>
+</main>
+<script>
+const ex=[["1 · Here + order","1Z999AA10123456784"],["2 · On the way + order","TBA123456789"],["3 · Here, no order","AMZUNATTACH001"],["4 · No record","NOSUCHCODE123"],["Order code","CRK7M2QX"]];
+const chips=document.getElementById('chips');
+ex.forEach(([l,c])=>{const b=document.createElement('button');b.type='button';b.className='chip';b.textContent=l;b.onclick=()=>{code.value=c;go()};chips.append(b)});
+const esc=s=>String(s).replace(/[&<>"]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[m]));
+const risk=r=>r==='on_track'?'<span class="badge ok">On track for your ship</span>':r==='at_risk'?'<span class="badge warn">May not be on time</span>':r==='will_miss'?'<span class="badge bad">Likely to miss this call</span>':'';
+function render(r){
+ let h='';
+ if(r.outcome==='attached_received') h=`<h2>Your parcel is here ✅</h2><p>It's at our warehouse and linked to order <b>${esc(r.orderCode)}</b>${r.portName?` for <b>${esc(r.portName)}</b>`:''}.</p>${risk(r.arrivalRisk)}`;
+ else if(r.outcome==='attached_expected') h=`<h2>On its way to us</h2><p>Linked to order <b>${esc(r.orderCode)}</b>. We'll message you as soon as it arrives.</p>${risk(r.arrivalRisk)}`;
+ else if(r.outcome==='unattached_received') h=`<h2>Your parcel is here 📦</h2><p>We have it, but there's no delivery order yet. Book delivery to your ship:</p><a class="cta" href="${esc(r.nextAction.url)}" onclick="alert('Booking form comes in M2');return false">Book delivery (R85)</a>`;
+ else if(r.outcome==='unknown') h=`<h2>No record of this code</h2><p>It may not have reached us yet. Declare it and book delivery now so we expect it:</p><a class="cta" href="${esc(r.nextAction.url)}" onclick="alert('Booking form comes in M2');return false">Declare parcel &amp; book</a>`;
+ else if(r.outcome==='needs_second_factor') h=`<h2>One more detail</h2><p>This code matches more than one parcel. Please enter your surname.</p>`;
+ else if(r.outcome==='order') h=`<h2>Order ${esc(r.orderCode)}</h2><p>${r.parcels.length} parcel(s)${r.portName?` · ${esc(r.portName)}`:''}</p><ul>${r.parcels.map(p=>`<li>${esc(p.status.replace(/_/g,' '))}</li>`).join('')}</ul>${risk(r.arrivalRisk)}`;
+ else h=`<h2>That doesn't look like a valid code</h2><p>Check for typos and try again.</p>`;
+ out.innerHTML=`<div class="card">${h}</div>`;
+}
+async function go(){const c=code.value.trim();if(!c)return;const res=await fetch('/v1/lookup/'+encodeURIComponent(c));if(res.status===429){out.innerHTML='<div class="card"><h2>Too many tries</h2><p>Please wait a minute.</p></div>';return}render(await res.json())}
+f.onsubmit=e=>{e.preventDefault();go()};
+</script></body></html>
