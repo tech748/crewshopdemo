@@ -23,22 +23,42 @@ describe.skipIf(!url)("lookup (integration)", () => {
     await mk(o, "received", "Beta Jones", "SHAREDCODE");
   });
   afterAll(() => pool.end());
-  it("outcome 1", async () => expect((await lookup(pool, "code1-aaaa")).outcome).toBe("attached_received"));
-  it("outcome 2", async () => expect((await lookup(pool, "CODE2AAAA")).outcome).toBe("attached_expected"));
-  it("outcome 3", async () => {
-    const r = await lookup(pool, "CODE3AAAA");
-    expect(r.outcome).toBe("unattached_received"); expect(r.nextAction.type).toBe("book_form");
+  it("scenario 4: in transit + linked + unpaid -> card + COD options", async () => {
+    const r = await lookup(pool, "CODE2AAAA");
+    expect(r.kind).toBe("in_transit_unpaid");
+    if (r.kind !== "in_transit_unpaid") return;
+    expect(r.payment.status).toBe("unpaid"); expect(r.payment.options.map((o) => o.type)).toEqual(["card", "cod"]);
+    expect(r.portName).toBe("Durban"); expect(r.deliveryDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
-  it("outcome 4", async () => expect((await lookup(pool, "NOPE123456")).outcome).toBe("unknown"));
-  it("invalid code", async () => expect((await lookup(pool, "a")).outcome).toBe("invalid_code"));
+  it("scenario 2: in warehouse + linked + unpaid", async () => expect((await lookup(pool, "code1-aaaa")).kind).toBe("in_warehouse_unpaid"));
+  it("scenario 1 and 3: paid orders show no pay options", async () => {
+    await pool.query(`UPDATE "order" SET payment_status='paid'`);
+    const one = await lookup(pool, "CODE1AAAA"), three = await lookup(pool, "CODE2AAAA");
+    expect(one.kind).toBe("in_warehouse_paid"); expect(three.kind).toBe("in_transit_paid");
+    if (one.kind === "in_warehouse_paid") { expect(one.payment.status).toBe("paid"); expect(one.payment.options).toEqual([]); }
+    await pool.query(`UPDATE "order" SET payment_status='unpaid'`);
+  });
+  it("manual_review order never offers a pay link (price not final)", async () => {
+    await pool.query(`UPDATE "order" SET status='manual_review'`);
+    const r = await lookup(pool, "CODE1AAAA");
+    await pool.query(`UPDATE "order" SET status='draft'`);
+    expect(r.kind).toBe("in_warehouse_unpaid");
+    if (r.kind === "in_warehouse_unpaid") { expect(r.payment.options).toEqual([]); expect(r.payment.awaitingStaffPricing).toBe(true); }
+  });
+  it("scenario 5: in warehouse, not linked -> prefilled book form at R85", async () => {
+    const r = await lookup(pool, "CODE3AAAA");
+    expect(r).toMatchObject({ kind: "in_warehouse_unlinked", baseCents: 8500, prefill: { parcelCodes: ["CODE3AAAA"] } });
+  });
+  it("scenario 6: no record", async () => expect(await lookup(pool, "NOPE123456")).toMatchObject({ kind: "no_record", baseCents: 8500 }));
+  it("invalid code", async () => expect((await lookup(pool, "a")).kind).toBe("invalid_code"));
   it("ambiguous needs second factor, then resolves", async () => {
-    expect((await lookup(pool, "SHAREDCODE")).outcome).toBe("needs_second_factor");
-    expect((await lookup(pool, "SHAREDCODE", { surname: "jones" })).outcome).toBe("attached_received");
+    expect((await lookup(pool, "SHAREDCODE")).kind).toBe("needs_second_factor");
+    expect((await lookup(pool, "SHAREDCODE", { surname: "jones" })).kind).toBe("in_warehouse_unpaid");
   });
   it("order code summary", async () => {
     await pool.query(`INSERT INTO tracking_alias(code_normalised,type,order_id) SELECT 'CRAAAAAA','order',id FROM "order"`);
     const r = await lookup(pool, "CRAAAAAA");
-    expect(r.outcome).toBe("order"); expect(r.parcels!.length).toBe(3);
+    expect(r.kind).toBe("order_summary"); if (r.kind === "order_summary") expect(r.parcels.length).toBe(3);
   });
   it("response never leaks names", async () => expect(JSON.stringify(await lookup(pool, "CODE1AAAA"))).not.toMatch(/Smith/));
   it("anonymise strips PII but keeps orders/parcels", async () => {

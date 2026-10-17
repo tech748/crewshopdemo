@@ -48,15 +48,15 @@ describe.skipIf(!url)("booking (integration)", () => {
     expect((await pool.query(`SELECT count(*)::int c FROM outbox_job`)).rows[0].c).toBe(1);
     expect((await pool.query(`SELECT count(*)::int c FROM consent_record`)).rows[0].c).toBe(2);
     // parcel declared -> lookup now says outcome 2
-    expect((await lookup(pool, "AMZ0001AAAA")).outcome).toBe("attached_expected");
-    expect((await lookup(pool, r.orderCode!)).outcome).toBe("order");
+    expect((await lookup(pool, "AMZ0001AAAA")).kind).toBe("in_transit_unpaid");
+    expect((await lookup(pool, r.orderCode!)).kind).toBe("order_summary");
   });
   it("attaches an existing unattached parcel (outcome 3 -> 1 path)", async () => {
     const id = (await pool.query(`INSERT INTO parcel(status) VALUES ('received') RETURNING id`)).rows[0].id;
     await pool.query(`INSERT INTO tracking_alias(code_normalised,type,parcel_id) VALUES ('HERENOORDER1','carrier',$1)`, [id]);
-    expect((await lookup(pool, "HERENOORDER1")).outcome).toBe("unattached_received");
+    expect((await lookup(pool, "HERENOORDER1")).kind).toBe("in_warehouse_unlinked");
     await createBooking(pool, base({ parcelCodes: ["HERENOORDER1"] }));
-    expect((await lookup(pool, "HERENOORDER1")).outcome).toBe("attached_received");
+    expect((await lookup(pool, "HERENOORDER1")).kind).toBe("in_warehouse_unpaid");
   });
   it("refuses a parcel already booked", async () => {
     await expect(createBooking(pool, base())).rejects.toBeInstanceOf(BookingError);

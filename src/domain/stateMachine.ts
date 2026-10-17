@@ -32,12 +32,12 @@ export type OrderStatus =
   | "draft" | "manual_review" | "awaiting_payment" | "cod_pending_verification"
   | "confirmed" | "completed" | "cancelled" | "refunded";
 export type OrderEvent =
-  | "submit_prepaid" | "submit_cod" | "flag_manual" | "approve_manual"
+  | "submit_prepaid" | "submit_cod" | "flag_manual" | "approve_manual" | "approve_manual_cod"
   | "payment_received" | "recipient_verified" | "complete" | "cancel" | "refund";
 
 const orderTable: Record<OrderStatus, Partial<Record<OrderEvent, OrderStatus>>> = {
   draft: { submit_prepaid: "awaiting_payment", submit_cod: "cod_pending_verification", flag_manual: "manual_review", cancel: "cancelled" },
-  manual_review: { approve_manual: "awaiting_payment", cancel: "cancelled" },
+  manual_review: { approve_manual: "awaiting_payment", approve_manual_cod: "cod_pending_verification", cancel: "cancelled" },
   awaiting_payment: { payment_received: "confirmed", cancel: "cancelled" },
   cod_pending_verification: { recipient_verified: "confirmed", cancel: "cancelled" },
   confirmed: { complete: "completed", cancel: "cancelled", refund: "refunded" },
